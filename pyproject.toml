@@ -7,6 +7,8 @@ requires-python = ">=3.13"
 dependencies = [
     "fastapi[standard]>=0.141.1",
     "spacy>=3.8.16",
+    "torch>=2.14.1",
+    "torchvision>=0.29.1",
     "uvicorn[standard]>=0.54.0",
 ]
 
