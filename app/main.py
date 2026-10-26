@@ -4,7 +4,12 @@ import torch
 from torchvision import transforms
 from PIL import Image
 from io import BytesIO
+import base64
+from io import BytesIO
 
+from torchvision.utils import save_image
+
+from app.gan_model import Generator
 from app.cnn_model import SimpleCNN
 
 
@@ -45,6 +50,14 @@ transform = transforms.Compose([
     transforms.ToTensor()
 ])
 
+generator = Generator()
+
+generator.load_state_dict(
+    torch.load("generator.pth", map_location="cpu")
+)
+
+generator.eval()
+
 
 classes = [
     "airplane",
@@ -82,4 +95,27 @@ async def predict(file: UploadFile = File(...)):
 
     return {
         "prediction": classes[predicted_class]
+    }
+@app.get("/generate-digit")
+def generate_digit():
+    noise = torch.randn(1, 100)
+
+    with torch.no_grad():
+        fake_image = generator(noise)
+
+    buffer = BytesIO()
+
+    save_image(
+        fake_image,
+        buffer,
+        format="PNG",
+        normalize=True
+    )
+
+    image_base64 = base64.b64encode(
+        buffer.getvalue()
+    ).decode("utf-8")
+
+    return {
+        "image": image_base64
     }
