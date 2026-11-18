@@ -6,9 +6,9 @@ from PIL import Image
 from io import BytesIO
 import base64
 from io import BytesIO
-
+from app.energy_model import EnergyModel, generate_samples
 from torchvision.utils import save_image
-
+from app.diffusion_model import UNet, DiffusionModel
 from app.gan_model import Generator
 from app.cnn_model import SimpleCNN
 
@@ -72,6 +72,83 @@ classes = [
     "truck"
 ]
 
+energy_model = EnergyModel()
+
+energy_model.load_state_dict(
+    torch.load(
+        "energy_model.pth",
+        map_location="cpu"
+    )
+)
+
+energy_model.eval()
+
+
+diffusion_network = UNet(
+    image_size=64,
+    num_channels=3
+)
+
+diffusion_model = DiffusionModel(
+    diffusion_network
+)
+
+checkpoint = torch.load(
+    "diffusion_model.pth",
+    map_location="cpu"
+)
+
+diffusion_model.network.load_state_dict(
+    checkpoint["network"]
+)
+
+diffusion_model.ema_network.load_state_dict(
+    checkpoint["ema_network"]
+)
+
+diffusion_model.set_normalizer(
+    checkpoint["mean"],
+    checkpoint["std"]
+)
+
+diffusion_model.eval()
+
+
+@app.get("/generate-energy")
+def generate_energy():
+
+    image = torch.rand(
+        1,
+        3,
+        32,
+        32
+    ) * 2 - 1
+
+    generated_image = generate_samples(
+        energy_model,
+        image,
+        steps=60,
+        step_size=10,
+        noise_std=0.01
+    )
+
+    buffer = BytesIO()
+
+    save_image(
+        generated_image,
+        buffer,
+        format="PNG",
+        normalize=True,
+        value_range=(-1, 1)
+    )
+
+    image_base64 = base64.b64encode(
+        buffer.getvalue()
+    ).decode("utf-8")
+
+    return {
+        "image": image_base64
+    }
 
 @app.post("/predict")
 async def predict(file: UploadFile = File(...)):
@@ -110,6 +187,31 @@ def generate_digit():
         buffer,
         format="PNG",
         normalize=True
+    )
+
+    image_base64 = base64.b64encode(
+        buffer.getvalue()
+    ).decode("utf-8")
+
+    return {
+        "image": image_base64
+    }
+
+@app.get("/generate-diffusion")
+def generate_diffusion():
+
+    with torch.no_grad():
+        generated_image = diffusion_model.generate(
+            num_images=1,
+            diffusion_steps=20
+        )
+
+    buffer = BytesIO()
+
+    save_image(
+        generated_image,
+        buffer,
+        format="PNG"
     )
 
     image_base64 = base64.b64encode(

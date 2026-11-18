@@ -21,6 +21,9 @@ RUN uv sync --frozen
 COPY ./app /code/app
 COPY cnn_model.pth /code/cnn_model.pth
 COPY generator.pth /code/generator.pth
+COPY energy_model.pth /code/energy_model.pth
+COPY diffusion_model.pth /code/diffusion_model.pth
+
 
 RUN uv pip install \
     --python /code/.venv/bin/python \
